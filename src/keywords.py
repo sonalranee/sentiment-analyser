@@ -4,9 +4,24 @@ from keybert import KeyBERT
 
 PROCESSED_DIR = "data/processed"
 
+def get_category(product):
+    product = str(product)
+    if any(x in product for x in ["Kindle", "eReader", "e-Reader"]):
+        return "E-Reader"
+    elif any(x in product for x in ["Fire", "Tablet"]):
+        return "Tablet/TV"
+    elif any(x in product for x in ["Echo", "Tap", "Dot", "Alexa"]):
+        return "Smart Speaker"
+    elif any(x in product for x in ["Battery", "Batteries"]):
+        return "Accessories"
+    else:
+        return "Other"
+
 def extract_keywords():
     df = pd.read_csv(os.path.join(PROCESSED_DIR, "reviews_sentiment.csv"))
+    df["category"] = df["product"].apply(get_category)
     print(f"Extracting keywords from {len(df)} reviews...")
+    print(f"Category distribution:\n{df['category'].value_counts()}")
 
     kw_model = KeyBERT()
 
@@ -25,35 +40,25 @@ def extract_keywords():
     df["keywords"] = df["review_text"].apply(get_keywords)
     print("Done extracting keywords!")
 
-    # Flatten all keywords into a frequency table
-    all_keywords = []
-    for kws in df["keywords"].dropna():
-        for kw in kws.split(", "):
+    # Flatten keywords with category and sentiment
+    rows = []
+    for _, row in df.iterrows():
+        if pd.isna(row["keywords"]):
+            continue
+        for kw in row["keywords"].split(", "):
             kw = kw.strip()
             if kw:
-                all_keywords.append(kw)
+                rows.append({
+                    "keyword": kw,
+                    "sentiment": row["sentiment"],
+                    "category": row["category"]
+                })
 
-    kw_freq = pd.Series(all_keywords).value_counts().reset_index()
-    kw_freq.columns = ["keyword", "count"]
-
-    # Also save keywords per sentiment
-    for sentiment in ["positive", "negative", "neutral"]:
-        subset = df[df["sentiment"] == sentiment]["keywords"].dropna()
-        flat = []
-        for kws in subset:
-            for kw in kws.split(", "):
-                kw = kw.strip()
-                if kw:
-                    flat.append(kw)
-        freq = pd.Series(flat).value_counts().reset_index()
-        freq.columns = ["keyword", "count"]
-        freq.to_csv(os.path.join(PROCESSED_DIR, f"keywords_{sentiment}.csv"), index=False)
-        print(f"Saved keywords_{sentiment}.csv — top 5: {freq['keyword'].head().tolist()}")
-
-    df.to_csv(os.path.join(PROCESSED_DIR, "reviews_final.csv"), index=False)
-    kw_freq.to_csv(os.path.join(PROCESSED_DIR, "keywords_all.csv"), index=False)
-    print(f"\nTop 10 keywords overall:\n{kw_freq.head(10)}")
-    print("Saved reviews_final.csv and keywords_all.csv")
+    kw_df = pd.DataFrame(rows)
+    kw_freq = kw_df.groupby(["keyword", "sentiment", "category"]).size().reset_index(name="count")
+    kw_freq.to_csv(os.path.join(PROCESSED_DIR, "pb_keywords_combined.csv"), index=False)
+    print(f"\nSaved pb_keywords_combined.csv with {len(kw_freq)} rows")
+    print(f"Sample:\n{kw_freq.head(10)}")
 
 if __name__ == "__main__":
     extract_keywords()
