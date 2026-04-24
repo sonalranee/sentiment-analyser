@@ -24,7 +24,6 @@ raw reviews → clean.py → sentiment.py → keywords.py → export.py → Powe
 - **Power BI** — interactive dashboard
 
 ## Project Structure
-## Project Structure
 
 | File | Description |
 |---|---|
