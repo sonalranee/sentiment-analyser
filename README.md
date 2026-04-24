@@ -24,21 +24,17 @@ raw reviews → clean.py → sentiment.py → keywords.py → export.py → Powe
 - **Power BI** — interactive dashboard
 
 ## Project Structure
-sentiment-analyser/
-├── data/
-│   ├── raw/        
-│   └── processed/   
-├── src/
-│   ├── clean.py         
-│   ├── sentiment.py     
-│   ├── keywords.py      
-│   ├── clean_keywords.py
-│   └── export.py       
-├── notebooks/
-│   └── analysis.ipynb 
-├── powerbi/
-│   └── analysis.pbix
-└── README.md
+## Project Structure
+
+| File | Description |
+|---|---|
+| `src/clean.py` | Data loading and preprocessing |
+| `src/sentiment.py` | Sentiment classification |
+| `src/keywords.py` | Keyword extraction with category mapping |
+| `src/clean_keywords.py` | Keyword cleanup and filtering |
+| `src/export.py` | Power BI export with category insights |
+| `notebooks/analysis.ipynb` | Exploratory analysis and category insights |
+| `powerbi/analysis.pbix` | Interactive Power BI dashboard |
 
 ## Dashboard Pages
 
