@@ -16,6 +16,22 @@ def get_category(product):
     else:
         return "Other"
 
+def top_keywords_per_category(kw_df, sentiment, n=3):
+    result = (
+        kw_df[kw_df["sentiment"] == sentiment]
+        .groupby(["category", "keyword"])["count"]
+        .sum()
+        .reset_index()
+        .sort_values("count", ascending=False)
+        .groupby("category")
+        .head(n)
+        .groupby("category")["keyword"]
+        .apply(lambda x: ", ".join(x))
+        .reset_index()
+        .rename(columns={"keyword": f"top_{sentiment}_keywords"})
+    )
+    return result
+
 def export_for_powerbi():
     df = pd.read_csv(os.path.join(PROCESSED_DIR, "reviews_sentiment.csv"))
     df["review_date"] = pd.to_datetime(df["review_date"], errors="coerce")
@@ -24,8 +40,8 @@ def export_for_powerbi():
     df["month_name"] = df["review_date"].dt.strftime("%b")
     df["category"] = df["product"].apply(get_category)
 
-    # 1. Sentiment summary by category
-    sentiment_by_product = df.groupby(["category", "sentiment"]).size().reset_index(name="count")
+    # 1. Sentiment summary by category AND product (for drill down)
+    sentiment_by_product = df.groupby(["category", "product", "sentiment"]).size().reset_index(name="count")
     sentiment_by_product.to_csv(os.path.join(PROCESSED_DIR, "pb_sentiment_by_product.csv"), index=False)
 
     # 2. Average rating by product with category
@@ -43,6 +59,28 @@ def export_for_powerbi():
     sentiment_summary = df["sentiment"].value_counts().reset_index()
     sentiment_summary.columns = ["sentiment", "count"]
     sentiment_summary.to_csv(os.path.join(PROCESSED_DIR, "pb_sentiment_summary.csv"), index=False)
+
+    # 5. Most popular product per category
+    top_per_category = (
+        df.groupby(["category", "product"])
+        .size()
+        .reset_index(name="review_count")
+        .sort_values("review_count", ascending=False)
+        .groupby("category")
+        .first()
+        .reset_index()
+    )
+
+    # 6. Add top 5 positive and negative keywords per category
+    kw_df = pd.read_csv(os.path.join(PROCESSED_DIR, "pb_keywords_combined.csv"))
+    top_pos = top_keywords_per_category(kw_df, "positive", n=5)
+    top_neg = top_keywords_per_category(kw_df, "negative", n=5)
+    top_per_category = top_per_category.merge(top_pos, on="category", how="left")
+    top_per_category = top_per_category.merge(top_neg, on="category", how="left")
+    top_per_category.to_csv(os.path.join(PROCESSED_DIR, "pb_top_product_per_category.csv"), index=False)
+
+    print("\nTop product per category:")
+    print(top_per_category.to_string(index=False))
 
     print("\nAll Power BI files exported:")
     for f in os.listdir(PROCESSED_DIR):
